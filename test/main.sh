@@ -13,6 +13,9 @@
 #
 set -euo pipefail
 
+# Trace complète de chaque commande exécutée : DEBUG=1 ./main.sh <commande>
+[ "${DEBUG:-0}" = "1" ] && set -x
+
 # ---------------------------------------------------------------------------
 # Emplacement du script, pour sourcer pt1.sh..pt4.sh quel que soit le cwd
 # ---------------------------------------------------------------------------
@@ -51,7 +54,11 @@ as_root() {
 # paquets détecté) et s'arrête. N'installe rien à la place de l'utilisateur.
 require_command() {
     local cmd="$1" pkg="$2" prefix=""
-    command -v "$cmd" >/dev/null 2>&1 && return 0
+    info "vérification de la commande « $cmd »..."
+    if command -v "$cmd" >/dev/null 2>&1; then
+        info "  -> ok ($(command -v "$cmd"))"
+        return 0
+    fi
     [ "$(id -u)" -eq 0 ] || prefix="sudo "
 
     local install_cmd
@@ -115,6 +122,8 @@ Variables : CONTAINER_FILE (défaut $HOME/coffre.img), CONTAINER_SIZE (défaut 5
 EOF
     exit 1
 }
+
+info "commande : ${1:-<aucune>} ${*:2}"
 
 case "${1:-}" in
     install)      pt4_install ;;

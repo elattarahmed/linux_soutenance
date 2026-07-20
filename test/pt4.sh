@@ -14,6 +14,7 @@
 # l'arborescence attendue et les permissions (Part III), puis le refermer.
 pt4_install() {
     pt1_container_create
+    info "=== install : initialisation de l'arborescence ==="
     pt1_container_open
     mkdir -p "$GPG_DIR" "$SSH_KEYS_DIR"
     pt3_perms
