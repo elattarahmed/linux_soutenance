@@ -1,0 +1,30 @@
+Part I - Mise en place
+Réaliser un environnement sécurisé chiffré de 5G.
+→ Dans un fichier
+→ LUKS
+→ ext4
+
+Part II - Cryptographie
+• Permettre la création de clef GPG automatisée. Si la paire de clef est générée par l’utilisateur, avoir
+un export de la clef publique dans ledit environnement. Il faut également proposer un export de la
+clef privée (attention au stockage de celle-ci) dans le cas où le client a pour objectif de changer de
+poste.
+
+Part III - Configuration
+• Proposer la création d’un fichier de configuration template pour le client ssh (pouvant être utilisé
+avec -F).
+• Préconfigurer un fichier d’alias (avec un lien symbolique) dans lequel il y aura minimum alias
+evsh="ssh -F chemin_fichier_de_conf_dans_coffre".
+• Proposer l’import des configurations & des clefs ssh déjà existantes par host. Par exemple, votre
+script parse le fichier $HOME/.ssh/config et trouve 3 postes (p1, p2, p3), vous choissez p2, il
+importe dans le coffre les lignes de configuration, et édite la ligne correspondante à l’IdentityFile
+afin de pointer sur la clef dans le coffre. Par extention, il copie aussi la paire de clef requise.
+• Pour les fichiers présents dans l’environnement ainsi que le fichier contenant l’environnement,
+associer les bonnes permissions & attributs.
+
+Part IV - Utilisation
+• Permettre avec l’appel du script d’installer l’environnement.
+• Permettre avec l’appel du script d’ouvrir l’environnement.
+• Permettre avec l’appel du script de fermer l’environnement.
+• Permettre l’import des clefs gpg (publiques et/ou privées) du coffre dans le trousseau.
+• Permettre l’export des clefs gpg (publiques et/ou privées) du trousseau vers le coffre.
