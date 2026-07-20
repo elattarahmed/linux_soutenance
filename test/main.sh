@@ -46,6 +46,27 @@ as_root() {
     if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo "$@"; fi
 }
 
+# Vérifie qu'une commande est disponible ; sinon indique la commande à
+# exécuter pour installer le paquet correspondant (selon le gestionnaire de
+# paquets détecté) et s'arrête. N'installe rien à la place de l'utilisateur.
+require_command() {
+    local cmd="$1" pkg="$2" prefix=""
+    command -v "$cmd" >/dev/null 2>&1 && return 0
+    [ "$(id -u)" -eq 0 ] || prefix="sudo "
+
+    local install_cmd
+    if command -v apt-get >/dev/null 2>&1; then install_cmd="apt-get install -y $pkg"
+    elif command -v dnf    >/dev/null 2>&1; then install_cmd="dnf install -y $pkg"
+    elif command -v yum    >/dev/null 2>&1; then install_cmd="yum install -y $pkg"
+    elif command -v pacman >/dev/null 2>&1; then install_cmd="pacman -S $pkg"
+    elif command -v apk    >/dev/null 2>&1; then install_cmd="apk add $pkg"
+    elif command -v zypper >/dev/null 2>&1; then install_cmd="zypper install -y $pkg"
+    else install_cmd="<installez le paquet $pkg avec votre gestionnaire de paquets>"
+    fi
+
+    err "$cmd introuvable. Installez-le avec : ${prefix}${install_cmd}"
+}
+
 # Le coffre doit être ouvert (monté) pour travailler dedans ; prépare aussi
 # l'arborescence attendue (gpg/, ssh/keys/).
 require_vault() {

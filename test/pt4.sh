@@ -34,6 +34,7 @@ pt4_close() {
 # Import : coffre -> trousseau. Sans argument, importe tous les fichiers du
 # répertoire gpg du coffre ; sinon uniquement le fichier donné.
 pt4_gpg_import() {
+    require_command gpg gnupg
     require_vault
     local target="${1:-}"
     if [ -n "$target" ]; then
@@ -57,6 +58,7 @@ pt4_gpg_import() {
 # Export : trousseau -> coffre. Clef publique toujours exportée ; la clef
 # privée uniquement avec --secret (confirmation demandée par pt2_gpg_export_private).
 pt4_gpg_export() {
+    require_command gpg gnupg
     local keyid="${1:-}" secret="${2:-}"
     [ -n "$keyid" ] || err "usage : $0 gpg-export <keyid|email> [--secret]"
     pt2_gpg_export_public "$keyid"

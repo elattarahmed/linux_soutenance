@@ -42,6 +42,7 @@ pt2_gpg_choose_key() {
 # Génère une paire de clefs GPG (RSA 4096, 2 ans), exporte automatiquement la
 # clef publique dans le coffre, et propose d'y exporter aussi la clef privée.
 pt2_gpg_generate() {
+    require_command gpg gnupg
     require_vault
     read -rp  "Nom complet : " nom
     read -rp  "Email : " email

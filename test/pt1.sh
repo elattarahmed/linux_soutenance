@@ -16,6 +16,8 @@
 # puis en ext4 une fois déverrouillé. Le conteneur est refermé à la fin ;
 # c'est pt1_container_open qui le monte.
 pt1_container_create() {
+    require_command cryptsetup cryptsetup
+    require_command mkfs.ext4 e2fsprogs
     [ -e "$CONTAINER_FILE" ] && err "$CONTAINER_FILE existe déjà (supprimez-le pour recommencer)"
 
     info "création du fichier conteneur ($CONTAINER_SIZE) : $CONTAINER_FILE"
@@ -36,6 +38,7 @@ pt1_container_create() {
 # Déverrouille (cryptsetup) et monte le conteneur sur VAULT_MOUNT. Idempotent :
 # ne fait rien si le coffre est déjà ouvert.
 pt1_container_open() {
+    require_command cryptsetup cryptsetup
     [ -e "$CONTAINER_FILE" ] || err "$CONTAINER_FILE introuvable (lancez '$0 install' d'abord)"
 
     if mountpoint -q "$VAULT_MOUNT" 2>/dev/null; then
