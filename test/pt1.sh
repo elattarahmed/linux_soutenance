@@ -23,7 +23,7 @@ pt1_require_devmapper() {
         return 0
     fi
     info "  -> absent, tentative : modprobe dm_mod"
-    modprobe dm_mod 2>/dev/null
+    modprobe dm_mod 2>/dev/null || true
     if [ -e /dev/mapper/control ]; then
         info "  -> ok après modprobe"
         return 0

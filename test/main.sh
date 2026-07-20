@@ -53,10 +53,21 @@ as_root() {
 # exécuter pour installer le paquet correspondant (selon le gestionnaire de
 # paquets détecté) et s'arrête. N'installe rien à la place de l'utilisateur.
 require_command() {
-    local cmd="$1" pkg="$2" prefix=""
+    local cmd="$1" pkg="$2" prefix="" found="" d
     info "vérification de la commande « $cmd »..."
+
+    # cryptsetup, mkfs.ext4, etc. vivent dans /usr/sbin ou /sbin, souvent
+    # absents du $PATH d'un utilisateur non-root sur Debian/Ubuntu, même si
+    # la commande est bien installée (root ou sudo, eux, l'ont dans le PATH).
     if command -v "$cmd" >/dev/null 2>&1; then
-        info "  -> ok ($(command -v "$cmd"))"
+        found="$(command -v "$cmd")"
+    else
+        for d in /usr/sbin /sbin /usr/local/sbin; do
+            [ -x "$d/$cmd" ] && { found="$d/$cmd"; break; }
+        done
+    fi
+    if [ -n "$found" ]; then
+        info "  -> ok ($found)"
         return 0
     fi
     [ "$(id -u)" -eq 0 ] || prefix="sudo "
