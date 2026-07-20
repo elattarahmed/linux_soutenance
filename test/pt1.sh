@@ -12,12 +12,28 @@
 # communes (err, info, as_root, ...).
 #
 
+# Vérifie que le sous-système device-mapper du noyau est disponible (requis
+# par LUKS). Message explicite plutôt que l'erreur cryptique de cryptsetup :
+# c'est typiquement absent dans un conteneur (Docker/LXC) non privilégié,
+# où LUKS ne peut de toute façon pas fonctionner (dépend du noyau hôte).
+pt1_require_devmapper() {
+    [ -e /dev/mapper/control ] && return 0
+    modprobe dm_mod 2>/dev/null
+    [ -e /dev/mapper/control ] && return 0
+    err "device-mapper indisponible (/dev/mapper/control absent).
+  - sur une VM : essayez '$([ "$(id -u)" -eq 0 ] || echo sudo )modprobe dm_mod', puis relancez.
+  - dans un conteneur (Docker/LXC/...) : LUKS a besoin du device-mapper du
+    noyau HÔTE ; il faut charger dm_mod sur l'hôte et relancer le conteneur
+    en --privileged avec /dev partagé, ou utiliser une vraie VM."
+}
+
 # Crée le conteneur chiffré : fichier de CONTAINER_SIZE, formaté en LUKS,
 # puis en ext4 une fois déverrouillé. Le conteneur est refermé à la fin ;
 # c'est pt1_container_open qui le monte.
 pt1_container_create() {
     require_command cryptsetup cryptsetup
     require_command mkfs.ext4 e2fsprogs
+    pt1_require_devmapper
     [ -e "$CONTAINER_FILE" ] && err "$CONTAINER_FILE existe déjà (supprimez-le pour recommencer)"
 
     info "création du fichier conteneur ($CONTAINER_SIZE) : $CONTAINER_FILE"
@@ -39,6 +55,7 @@ pt1_container_create() {
 # ne fait rien si le coffre est déjà ouvert.
 pt1_container_open() {
     require_command cryptsetup cryptsetup
+    pt1_require_devmapper
     [ -e "$CONTAINER_FILE" ] || err "$CONTAINER_FILE introuvable (lancez '$0 install' d'abord)"
 
     if mountpoint -q "$VAULT_MOUNT" 2>/dev/null; then
