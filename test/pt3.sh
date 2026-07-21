@@ -151,8 +151,8 @@ pt3_perms() {
     fi
     # Clefs gpg : privées en 600, publiques en 644
     if [ -d "$GPG_DIR" ]; then
-        find "$GPG_DIR" -type f -name '*_private.asc' -exec chmod 600 {} +
-        find "$GPG_DIR" -type f -name '*_public.asc'  -exec chmod 644 {} +
+        find "$GPG_DIR" -type f -name '*_priv.asc' -exec chmod 600 {} +
+        find "$GPG_DIR" -type f -name '*_pub.asc'  -exec chmod 644 {} +
     fi
     info "permissions appliquées sur $VAULT_MOUNT"
 }

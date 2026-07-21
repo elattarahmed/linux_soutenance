@@ -142,7 +142,7 @@ case "${1:-}" in
     close)        pt4_close ;;
     gpg-import)   shift; pt4_gpg_import "${1:-}" ;;
     gpg-export)   shift; pt4_gpg_export "${1:-}" "${2:-}" ;;
-    gpg-generate) pt2_gpg_generate ;;
+    gpg-generate) gpg_generate_key ;;
     ssh-template) pt3_ssh_template ;;
     alias)        pt3_alias ;;
     ssh-import)   shift; pt3_ssh_import "${1:-}" ;;

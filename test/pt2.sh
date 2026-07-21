@@ -2,55 +2,48 @@
 #
 # pt2.sh — Part II : Cryptographie
 #
-# • Permettre la création de clef GPG automatisée.
-# • Export automatique de la clef publique dans le coffre.
-# • Proposer l'export de la clef privée dans le coffre (changement de poste,
-#   stockage à manier avec précaution).
+# Repris de gpg.sh (script initial du projet). Adapté pour s'intégrer au
+# reste du projet : VAULT_MOUNT/GPG_DIR viennent de main.sh (plus de
+# /mnt/coffre codé en dur), require_vault/require_command/err/info/warn sont
+# les aides communes déjà utilisées par pt1/pt3/pt4, et KEYID est référencé
+# via "${KEYID:-}" pour rester compatible avec le set -u de main.sh.
+#
+# gpg_menu() et gpg_import_keys() de gpg.sh original ne sont pas repris ici :
+# le menu interactif fait double emploi avec le dispatch de main.sh, et
+# l'import (coffre -> trousseau) est déjà couvert par pt4_gpg_import.
 #
 
-#
-# NB : tous les appels gpg ci-dessous qui n'attendent pas de saisie
-# utilisateur sont explicitement branchés sur /dev/null. gpg hérite sinon du
-# stdin de la fonction appelante ; si celle-ci est un jour pilotée via un
-# pipe (tests automatisés, script, ...) plutôt qu'un vrai terminal, gpg peut
-# lire (et donc perdre) des octets destinés aux prochains `read` du script.
-#
-
-pt2_gpg_list_keys() {
-    gpg --list-secret-keys --with-colons 2>/dev/null < /dev/null | awk -F: '
-        $1=="sec" { print $5 }
-        $1=="uid" { print "    " $10 }
-    '
+gpg_list_keys() {
+    gpg --list-secret-keys --with-colons 2>/dev/null | grep '^sec' | cut -d: -f5
+    gpg --list-secret-keys --with-colons 2>/dev/null | grep '^uid' | cut -d: -f10 | sed 's/^/    /'
 }
 
-pt2_gpg_keyids() {
-    gpg --list-secret-keys --with-colons 2>/dev/null < /dev/null | awk -F: '$1=="sec" { print $5 }'
+gpg_keyids() {
+    gpg --list-secret-keys --with-colons 2>/dev/null | grep '^sec' | cut -d: -f5
 }
 
-# Demande un keyid à l'utilisateur si non fourni ; le stocke dans REPLY_KEYID.
-pt2_gpg_choose_key() {
-    if [ -n "${1:-}" ]; then
-        REPLY_KEYID="$1"
-    else
-        info "clefs disponibles :"
-        pt2_gpg_list_keys
-        read -rp "Keyid à utiliser : " REPLY_KEYID
-    fi
-    gpg --list-secret-keys "$REPLY_KEYID" >/dev/null 2>&1 < /dev/null || err "keyid inconnu : $REPLY_KEYID"
+gpg_choose_key() {
+    info "Clés disponibles :"
+    gpg_list_keys
+    read -rp "Keyid à utiliser : " KEYID
+    gpg --list-secret-keys "$KEYID" >/dev/null 2>&1 || err "Keyid inconnu : $KEYID"
 }
 
 # Génère une paire de clefs GPG (RSA 4096, 2 ans), exporte automatiquement la
-# clef publique dans le coffre, et propose d'y exporter aussi la clef privée.
-pt2_gpg_generate() {
+# clef publique dans le coffre, et propose d'y exporter aussi la clef privée
+# (cas d'un changement de poste).
+gpg_generate_key() {
     require_command gpg gnupg
     require_vault
     read -rp  "Nom complet : " nom
     read -rp  "Email : " email
     read -rsp "Passphrase : " pass; echo
     read -rsp "Confirmation : " pass2; echo
-    [ "$pass" = "$pass2" ] || err "les passphrases ne correspondent pas"
+    if [ "$pass" != "$pass2" ]; then
+        err "Les passphrases ne correspondent pas."
+    fi
 
-    gpg --batch --generate-key <<EOF || err "échec de la génération de la clef"
+    gpg --batch --generate-key <<EOF || err "Échec de la génération."
 Key-Type: RSA
 Key-Length: 4096
 Name-Real: $nom
@@ -59,52 +52,34 @@ Expire-Date: 2y
 Passphrase: $pass
 %commit
 EOF
-    unset pass pass2
+    info "Clé générée avec succès."
 
-    local keyid
-    keyid="$(pt2_gpg_keyids | tail -n1)"
-    info "clef générée : $keyid"
-
-    pt2_gpg_export_public "$keyid"
+    KEYID=$(gpg_keyids | tail -n1)
+    gpg_export_public
 
     read -rp "Exporter également la clef privée dans le coffre ? [o/N] " rep
-    [[ "$rep" =~ ^[oO]$ ]] && pt2_gpg_export_private "$keyid"
+    [[ "$rep" =~ ^[oO]$ ]] && gpg_export_private
     return 0
 }
 
-# Export : trousseau -> coffre, clef publique (644).
-pt2_gpg_export_public() {
+gpg_export_public() {
     require_vault
-    local keyid="${1:-}"
-    if [ -z "$keyid" ]; then
-        pt2_gpg_choose_key
-        keyid="$REPLY_KEYID"
-    fi
-
-    local dest="$GPG_DIR/${keyid//[^a-zA-Z0-9@._-]/_}_public.asc"
-    gpg --export --armor --yes --output "$dest" -- "$keyid" < /dev/null
-    [ -s "$dest" ] || { rm -f "$dest"; err "aucune clef publique trouvée pour « $keyid »"; }
-    chmod 644 "$dest"
-    info "clef publique exportée : $dest"
+    [ -n "${KEYID:-}" ] || gpg_choose_key
+    gpg --export --armor --yes --output "$GPG_DIR/${KEYID}_pub.asc" "$KEYID" \
+        || err "export de la clef publique échoué"
+    chmod 644 "$GPG_DIR/${KEYID}_pub.asc"
+    info "Clé publique exportée : $GPG_DIR/${KEYID}_pub.asc"
 }
 
-# Export : trousseau -> coffre, clef privée (600). Confirmation demandée :
-# une clef privée reste sensible même stockée dans un coffre chiffré.
-pt2_gpg_export_private() {
+gpg_export_private() {
     require_vault
-    local keyid="${1:-}"
-    if [ -z "$keyid" ]; then
-        pt2_gpg_choose_key
-        keyid="$REPLY_KEYID"
-    fi
-
-    warn "vous allez exporter une clef PRIVÉE dans le coffre ($keyid)"
+    [ -n "${KEYID:-}" ] || gpg_choose_key
+    warn "vous allez exporter une clé PRIVÉE dans le coffre."
     read -rp "Confirmer ? [o/N] " rep
     [[ "$rep" =~ ^[oO]$ ]] || { info "export annulé"; return 0; }
 
-    local dest="$GPG_DIR/${keyid//[^a-zA-Z0-9@._-]/_}_private.asc"
-    gpg --export-secret-keys --armor --yes --output "$dest" -- "$keyid" < /dev/null \
-        || { rm -f "$dest"; err "export de la clef privée refusé ou introuvable"; }
-    chmod 600 "$dest"
-    info "clef privée exportée (600) : $dest"
+    gpg --export-secret-keys --armor --yes --output "$GPG_DIR/${KEYID}_priv.asc" "$KEYID" \
+        || err "export de la clef privée échoué"
+    chmod 600 "$GPG_DIR/${KEYID}_priv.asc"
+    info "Clé privée exportée : $GPG_DIR/${KEYID}_priv.asc (permissions 600)"
 }
