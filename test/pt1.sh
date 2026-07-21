@@ -86,6 +86,12 @@ pt1_container_open() {
     fi
     mkdir -p "$VAULT_MOUNT"
     as_root mount "/dev/mapper/$MAPPER_NAME" "$VAULT_MOUNT"
+
+    # mkfs.ext4 crée la racine du système de fichiers appartenant à root ;
+    # sans ce chown, tout mkdir/écriture ultérieur (en tant qu'utilisateur
+    # courant, pas root) échouerait avec "Permission non accordée".
+    as_root chown -R "$(id -u):$(id -g)" "$VAULT_MOUNT"
+
     info "coffre ouvert sur $VAULT_MOUNT"
 }
 
