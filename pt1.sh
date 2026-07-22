@@ -51,8 +51,11 @@ pt1_container_create() {
     chmod 600 "$CONTAINER_FILE"
     info "  -> fichier créé ($(du -h "$CONTAINER_FILE" | cut -f1) sur disque, $CONTAINER_SIZE alloués)"
 
-    info "formatage LUKS de $CONTAINER_FILE (une passphrase va être demandée)"
-    as_root cryptsetup luksFormat --batch-mode "$CONTAINER_FILE"
+    # Pas de --batch-mode ici : on veut la double saisie native de cryptsetup
+    # ("Enter passphrase" / "Verify passphrase") pour confirmer la passphrase
+    # avant qu'elle ne soit définitivement celle du conteneur.
+    info "formatage LUKS de $CONTAINER_FILE (passphrase demandée puis reconfirmée)"
+    as_root cryptsetup luksFormat "$CONTAINER_FILE"
     info "  -> luksFormat ok"
 
     info "ouverture temporaire pour créer le système de fichiers ext4"
